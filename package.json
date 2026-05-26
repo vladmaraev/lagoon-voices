@@ -2,31 +2,31 @@
   "name": "lagoon_voices",
   "version": "0.0.0",
   "type": "module",
-  "main": "./dist/index.umd.cjs",
-  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.umd.cjs"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
-    "./style.css": "./dist/index.css"
+    "./index.css": "./dist/index.css"
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc  && vite build",
+    "build": "npm run build:es && npm run build:types",
+    "build:es": "esbuild src/index.ts --bundle --format=esm --outdir=dist/",
+    "build:types": "tsc --emitDeclarationOnly",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "esbuild": "0.28.0",
     "typescript": "~5.9.3",
     "vite": "^7.3.1"
   },
   "dependencies": {
     "@statelyai/inspect": "^0.4.0",
+    "openai": "^6.25.0",
     "speechstate": "^2.15.0",
-    "xstate": "^5.28.0",
-    "openai": "^6.25.0"
+    "xstate": "^5.28.0"
   }
 }

@@ -23,8 +23,8 @@ const azureLanguageCredentials = {
 
 const settings: Settings = {
   azureLanguageCredentials: azureLanguageCredentials,
-  azureCredentials: azureCredentials,
-  azureRegion: "francecentral",
+  azureCredentials: "azureToken",
+  azureRegion: "northeurope",
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
   locale: "en-US",

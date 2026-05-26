@@ -1,0 +1,46 @@
+import type { Hypothesis, SpeechStateExternalEvent } from "speechstate";
+import type { ActorRef } from "xstate";
+import type { OpenAI } from "openai";
+export interface DMContext {
+    spstRef: ActorRef<any, any>;
+    lastResult: Hypothesis[] | null;
+    interpretation: NLUObject | null;
+    guideHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+    crabHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+    fishermanHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+}
+export type DMEvents = SpeechStateExternalEvent | {
+    type: "CLICK";
+} | {
+    type: "DONE";
+} | {
+    type: "SPEAK_START";
+};
+export interface Entity {
+    category: string;
+    text: string;
+    confidenceScore: number;
+    offset: number;
+    length: number;
+    resolutions?: Resolution[];
+    extraInformation?: ExtraInofrmation[];
+}
+export interface Resolution {
+    resolutionKind: string;
+    value: boolean;
+}
+export interface ExtraInofrmation {
+    extraInformationKind: string;
+    key: string;
+}
+export interface Intent {
+    category: string;
+    confidenceScore: number;
+}
+export interface NLUObject {
+    entities: Entity[];
+    intents: Intent[];
+    projectKind: string;
+    topIntent: string;
+}
+//# sourceMappingURL=types.d.ts.map
