@@ -1,8 +1,10 @@
 {
-  "name": "code",
+  "name": "lagoon_voices",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
