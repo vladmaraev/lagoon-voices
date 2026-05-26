@@ -1,3 +1,5 @@
+import "./style.css";
+
 const htmlToInject = `
       <div id="startPage" data-layer="Starting Page" class="screen light-bg">
         <div data-layer="Voices from the Lagoon" class="title">Voices from the Lagoon</div>

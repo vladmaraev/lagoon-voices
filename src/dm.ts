@@ -1,4 +1,4 @@
-import { assign, createActor, setup, fromPromise, type StateNodeConfig } from "xstate";
+import { assign, createActor, setup, fromPromise } from "xstate";
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 import type { Settings } from "speechstate";
 import { speechstate } from "speechstate";
@@ -11,12 +11,12 @@ import OpenAI from "openai";
 const azureCredentials = {
   endpoint:
     "https://francecentral.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: KEY,
+  key: "KEY",
 };
 
 const azureLanguageCredentials = {
   endpoint: "https://lab-gusmilczo.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2024-11-15-preview" /** your Azure CLU prediction URL */,
-  key: NLU_KEY /** reference to your Azure CLU key */,
+  key: "NLU_KEY" /** reference to your Azure CLU key */,
   deploymentName: "lagoon" /** your Azure CLU deployment */,
   projectName: "lagoon" /** your Azure CLU project name */,
 };
@@ -29,9 +29,10 @@ const settings: Settings = {
   asrDefaultNoInputTimeout: 5000,
   locale: "en-US",
   ttsDefaultVoice: "en-US-Adam:DragonHDLatestNeural",
+  bargeIn: false
 };
 
-const speechConfig = sdk.SpeechConfig.fromSubscription(KEY, "francecentral");
+const speechConfig = sdk.SpeechConfig.fromSubscription("KEY", "francecentral");
 
 const client = new OpenAI({
   apiKey: "EMPTY",
@@ -115,7 +116,7 @@ const dmMachine = setup({
     "azure.speakSSML": ({ self }, params: { ssml: string }) => {
       const player = new sdk.SpeakerAudioDestination();
     
-      player.onAudioEnd = (sender: sdk.IPlayer) => {
+      player.onAudioEnd = (_sender: sdk.IPlayer) => {
         console.log("Playback finished.");
         self.send({ type: "SPEAK_COMPLETE" });
       };
