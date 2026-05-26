@@ -2,13 +2,11 @@ import { assign, createActor, setup, fromPromise, type StateNodeConfig } from "x
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 import type { Settings } from "speechstate";
 import { speechstate } from "speechstate";
-import { createBrowserInspector } from "@statelyai/inspect";
-import { KEY, NLU_KEY } from "./azure";
+// import { KEY, NLU_KEY } from "./azure";
 import { GUIDE_PROMPT, INTRO, GUIDE_FIRST_UTT, CRAB_FIRST_UTT, CRAB_PROMPT, FISHERMAN_FIRST_UTT, FISHERMAN_PROMPT } from "./prompts";
 import type { DMContext, DMEvents } from "./types";
 import OpenAI from "openai";
 
-const inspector = createBrowserInspector();
 
 const azureCredentials = {
   endpoint:
@@ -483,7 +481,6 @@ const dmMachine = setup({
 });
 
 const dmActor = createActor(dmMachine, {
-  inspect: inspector.inspect,
 }).start();
 
 dmActor.subscribe((state) => {
