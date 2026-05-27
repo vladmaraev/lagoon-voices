@@ -511,8 +511,8 @@ function setSpeaking(character: string, value: boolean) {
   if (!element) return;
   
   if (value) {
-    element.src = `images/${character}-animation.gif`;
+    element.src = `https://files.maraev.me/lagoon_voices/${character}-animation.gif`;
   } else {
-    element.src = `images/${character}.png`;
+    element.src = `https://files.maraev.me/lagoon_voices/${character}.png`;
   }
 }
