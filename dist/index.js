@@ -47314,35 +47314,31 @@ function getLLMAnswerScaped(dialogue, prompt) {
   }).then((response) => response.json());
 }
 function getGuideSSML(utterance) {
-  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
-  <voice name="en-US-Ava:DragonHDLatestNeural">
-    <prosody rate="1.05" pitch="+2%">
+  return {
+    utterance: `<prosody rate="1.05" pitch="+2%">
       ${utterance}
-    </prosody>
-  </voice>
-</speak>`;
+    </prosody>`,
+    voice: "en-US-Ava:DragonHDLatestNeural"
+  };
 }
 function getCrabSSML(utterance) {
-  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
-         xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
-  <voice name="en-US-Andrew:DragonHDLatestNeural">
-    <mstts:express-as style="depressed" styledegree="1.5">
+  return {
+    utterance: `<mstts:express-as style="depressed" styledegree="1.5">
       <prosody rate="0.85" pitch="-15%" contour="(0%, -5%) (100%, -20%)">
         ${utterance}
       </prosody>
-    </mstts:express-as>
-  </voice>
-</speak>`;
+    </mstts:express-as>`,
+    voice: "en-US-Andrew:DragonHDLatestNeural"
+  };
 }
 function getFishermanSSML(utterance) {
-  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
-         xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
-  <voice name="en-US-Adam:DragonHDLatestNeural">
-    <mstts:express-as role="OlderAdultMale" style="disgruntled" styledegree="1.5">
+  return {
+    utterance: `<mstts:express-as role="OlderAdultMale" style="disgruntled" styledegree="1.5">
         ${utterance}
     </mstts:express-as>
-  </voice>
-</speak>`;
+`,
+    voice: "en-US-Adam:DragonHDLatestNeural"
+  };
 }
 var dmMachine = setup({
   types: {
@@ -47353,7 +47349,8 @@ var dmMachine = setup({
     "spst.speak": ({ context }, params) => context.spstRef.send({
       type: "SPEAK",
       value: {
-        utterance: params.utterance
+        utterance: params.utterance,
+        voice: params.voice || "en-US-Adam:DragonHDLatestNeural"
       }
     }),
     "spst.listen": ({ context }) => context.spstRef.send({
@@ -47508,14 +47505,10 @@ var dmMachine = setup({
                 ({}) => makeHidden("main", false),
                 ({}) => setSpeaking("guide", true),
                 {
-                  type: "azure.speakSSML",
-                  params: ({ context }) => {
-                    return {
-                      ssml: getGuideSSML(
-                        context.guideHistory?.at(-1)?.content ?? GUIDE_FIRST_UTT
-                      )
-                    };
-                  }
+                  type: "spst.speak",
+                  params: ({ context }) => getGuideSSML(
+                    context.guideHistory?.at(-1)?.content ?? GUIDE_FIRST_UTT
+                  )
                 }
               ],
               on: {
@@ -47547,12 +47540,10 @@ var dmMachine = setup({
               entry: [
                 ({}) => setSpeaking("guide", true),
                 {
-                  type: "azure.speakSSML",
-                  params: ({ context }) => ({
-                    ssml: getGuideSSML(
-                      context.guideHistory?.at(-1)?.content ?? "Sorry, there was an error"
-                    )
-                  })
+                  type: "spst.speak",
+                  params: ({ context }) => getGuideSSML(
+                    context.guideHistory?.at(-1)?.content ?? "Sorry, there was an error"
+                  )
                 }
               ],
               on: {
@@ -47617,8 +47608,8 @@ var dmMachine = setup({
               entry: [
                 ({}) => setSpeaking("crab", true),
                 {
-                  type: "azure.speakSSML",
-                  params: { ssml: getCrabSSML(CRAB_FIRST_UTT) }
+                  type: "spst.speak",
+                  params: getCrabSSML(CRAB_FIRST_UTT)
                 }
               ],
               on: { SPEAK_COMPLETE: "Ask" }
@@ -47648,12 +47639,10 @@ var dmMachine = setup({
               entry: [
                 ({}) => setSpeaking("crab", true),
                 {
-                  type: "azure.speakSSML",
-                  params: ({ context }) => ({
-                    ssml: getCrabSSML(
-                      context.crabHistory?.at(-1)?.content ?? "Sorry, there was an error"
-                    )
-                  })
+                  type: "spst.speak",
+                  params: ({ context }) => getCrabSSML(
+                    context.crabHistory?.at(-1)?.content ?? "Sorry, there was an error"
+                  )
                 }
               ],
               on: {
@@ -47718,10 +47707,8 @@ var dmMachine = setup({
               entry: [
                 ({}) => setSpeaking("fisherman", true),
                 {
-                  type: "azure.speakSSML",
-                  params: ({}) => ({
-                    ssml: getFishermanSSML(FISHERMAN_FIRST_UTT)
-                  })
+                  type: "spst.speak",
+                  params: ({}) => getFishermanSSML(FISHERMAN_FIRST_UTT)
                 }
               ],
               on: { SPEAK_COMPLETE: "Ask" }
@@ -47751,12 +47738,10 @@ var dmMachine = setup({
               entry: [
                 ({}) => setSpeaking("fisherman", true),
                 {
-                  type: "azure.speakSSML",
-                  params: ({ context }) => ({
-                    ssml: getFishermanSSML(
-                      context.fishermanHistory?.at(-1)?.content ?? "Sorry, there was an error"
-                    )
-                  })
+                  type: "spst.speak",
+                  params: ({ context }) => getFishermanSSML(
+                    context.fishermanHistory?.at(-1)?.content ?? "Sorry, there was an error"
+                  )
                 }
               ],
               on: {
