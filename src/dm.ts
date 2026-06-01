@@ -3,10 +3,17 @@ import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 import type { Settings } from "speechstate";
 import { speechstate } from "speechstate";
 // import { KEY, NLU_KEY } from "./azure";
-import { GUIDE_PROMPT, INTRO, GUIDE_FIRST_UTT, CRAB_FIRST_UTT, CRAB_PROMPT, FISHERMAN_FIRST_UTT, FISHERMAN_PROMPT } from "./prompts";
+import {
+  GUIDE_PROMPT,
+  INTRO,
+  GUIDE_FIRST_UTT,
+  CRAB_FIRST_UTT,
+  CRAB_PROMPT,
+  FISHERMAN_FIRST_UTT,
+  FISHERMAN_PROMPT,
+} from "./prompts";
 import type { DMContext, DMEvents } from "./types";
 import OpenAI from "openai";
-
 
 const azureCredentials = {
   endpoint:
@@ -15,7 +22,8 @@ const azureCredentials = {
 };
 
 const azureLanguageCredentials = {
-  endpoint: "https://lab-gusmilczo.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2024-11-15-preview" /** your Azure CLU prediction URL */,
+  endpoint:
+    "https://lab-gusmilczo.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2024-11-15-preview" /** your Azure CLU prediction URL */,
   key: "NLU_KEY" /** reference to your Azure CLU key */,
   deploymentName: "lagoon" /** your Azure CLU deployment */,
   projectName: "lagoon" /** your Azure CLU project name */,
@@ -23,13 +31,13 @@ const azureLanguageCredentials = {
 
 const settings: Settings = {
   azureLanguageCredentials: azureLanguageCredentials,
-  azureCredentials: "azureToken",
-  azureRegion: "northeurope",
+  azureCredentials: "/api/token",
+  azureRegion: "francecentral",
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
   locale: "en-US",
   ttsDefaultVoice: "en-US-Adam:DragonHDLatestNeural",
-  bargeIn: false
+  bargeIn: false,
 };
 
 const speechConfig = sdk.SpeechConfig.fromSubscription("KEY", "francecentral");
@@ -40,19 +48,47 @@ const client = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-async function getLLMAnswer(dialogue: OpenAI.Chat.Completions.ChatCompletionMessageParam[], prompt: string): Promise<string> {
+async function getLLMAnswer(
+  dialogue: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+  prompt: string,
+): Promise<string> {
   const completion = await client.chat.completions.create({
     model: "llama3.1:8b",
-    messages: [{"role":"system", "content": prompt} as OpenAI.Chat.Completions.ChatCompletionMessageParam].concat(dialogue ?? []),
+    messages: [
+      {
+        role: "system",
+        content: prompt,
+      } as OpenAI.Chat.Completions.ChatCompletionMessageParam,
+    ].concat(dialogue ?? []),
   });
 
   return completion.choices[0].message.content ?? "";
 }
 
+function getLLMAnswerScaped(
+  dialogue: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+  prompt: string,
+): Promise<string> {
+  return fetch("/api/llm", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "groq:openai/gpt-oss-120b",
+      messages: [
+        {
+          role: "system",
+          content: prompt,
+        } as OpenAI.Chat.Completions.ChatCompletionMessageParam,
+      ].concat(dialogue ?? []),
+    }),
+  }).then((response) => response.json());
+}
 
 // SSML configs
 
-function getGuideSSML(utterance: string) : string {
+function getGuideSSML(utterance: string): string {
   return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
   <voice name="en-US-Ava:DragonHDLatestNeural">
     <prosody rate="1.05" pitch="+2%">
@@ -62,8 +98,7 @@ function getGuideSSML(utterance: string) : string {
 </speak>`;
 }
 
-
-function getCrabSSML(utterance: string) : string {
+function getCrabSSML(utterance: string): string {
   return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
          xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
   <voice name="en-US-Andrew:DragonHDLatestNeural">
@@ -76,9 +111,7 @@ function getCrabSSML(utterance: string) : string {
 </speak>`;
 }
 
-
-
-function getFishermanSSML(utterance: string) : string {
+function getFishermanSSML(utterance: string): string {
   return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
          xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
   <voice name="en-US-Adam:DragonHDLatestNeural">
@@ -88,8 +121,6 @@ function getFishermanSSML(utterance: string) : string {
   </voice>
 </speak>`;
 }
-
-
 
 const dmMachine = setup({
   types: {
@@ -107,15 +138,15 @@ const dmMachine = setup({
     "spst.listen": ({ context }) =>
       context.spstRef.send({
         type: "LISTEN",
-        value: { nlu: true}, // activating NLU
+        value: { nlu: true }, // activating NLU
       }),
-    "resetVars" : assign(() => ({
-            lastResult: null,
-            interpretation: null,
-      })),
+    resetVars: assign(() => ({
+      lastResult: null,
+      interpretation: null,
+    })),
     "azure.speakSSML": ({ self }, params: { ssml: string }) => {
       const player = new sdk.SpeakerAudioDestination();
-    
+
       player.onAudioEnd = (_sender: sdk.IPlayer) => {
         console.log("Playback finished.");
         self.send({ type: "SPEAK_COMPLETE" });
@@ -128,8 +159,10 @@ const dmMachine = setup({
         params.ssml,
         (result) => {
           if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-            console.log("Synthesis finished, waiting for audio playback to end...");
-            self.send({type: "SPEAK_START"})
+            console.log(
+              "Synthesis finished, waiting for audio playback to end...",
+            );
+            self.send({ type: "SPEAK_START" });
           } else {
             console.error("SSML failed. Error is:", result.errorDetails);
             self.send({ type: "SPEAK_COMPLETE" });
@@ -140,33 +173,50 @@ const dmMachine = setup({
         (err) => {
           console.error("Synthesis error:", err);
           self.send({ type: "SPEAK_COMPLETE" });
-        }
+        },
       );
     },
   },
-  guards:{
-    isYes: ({context}) => context.interpretation?.entities?.find(e => e.resolutions?.[0].resolutionKind === "BooleanResolution")?.resolutions?.[0].value ?? false,
-    isNo: ({context}) => !(context.interpretation?.entities?.find(e => e.resolutions?.[0].resolutionKind === "BooleanResolution")?.resolutions?.[0].value ?? true),
-    isEndConversation: ({context}) => context.interpretation?.topIntent === "EndConversation" && ((context.interpretation?.intents.find(e => e.category === "EndConversation")?.confidenceScore ?? 0.0) > 0.9),
-    isCharacter: ({context}, params: { name: string }) => {
-      return (context.interpretation?.topIntent === "ChooseCharacter") && (context.interpretation?.entities?.find(e=>e.extraInformation?.[0].extraInformationKind === "ListKey")?.extraInformation?.[0].key === params.name);
+  guards: {
+    isYes: ({ context }) =>
+      context.interpretation?.entities?.find(
+        (e) => e.resolutions?.[0].resolutionKind === "BooleanResolution",
+      )?.resolutions?.[0].value ?? false,
+    isNo: ({ context }) =>
+      !(
+        context.interpretation?.entities?.find(
+          (e) => e.resolutions?.[0].resolutionKind === "BooleanResolution",
+        )?.resolutions?.[0].value ?? true
+      ),
+    isEndConversation: ({ context }) =>
+      context.interpretation?.topIntent === "EndConversation" &&
+      (context.interpretation?.intents.find(
+        (e) => e.category === "EndConversation",
+      )?.confidenceScore ?? 0.0) > 0.9,
+    isCharacter: ({ context }, params: { name: string }) => {
+      return (
+        context.interpretation?.topIntent === "ChooseCharacter" &&
+        context.interpretation?.entities?.find(
+          (e) => e.extraInformation?.[0].extraInformationKind === "ListKey",
+        )?.extraInformation?.[0].key === params.name
+      );
     },
   },
   actors: {
     getLLMAnswerActor: fromPromise(
       async ({ input }: { input: { dialogue: any; prompt: string } }) => {
-        return getLLMAnswer(input.dialogue, input.prompt);
-      }
-    )
+        return getLLMAnswerScaped(input.dialogue, input.prompt);
+      },
+    ),
   },
 }).createMachine({
   context: ({ spawn }) => ({
     spstRef: spawn(speechstate, { input: settings }),
     lastResult: null,
     interpretation: null,
-    guideHistory: [{"role":  "assistant", "content": GUIDE_FIRST_UTT}],
-    crabHistory: [{"role": "assistant", "content": CRAB_FIRST_UTT}],
-    fishermanHistory: [{"role" : "assistant", "content": FISHERMAN_FIRST_UTT}],
+    guideHistory: [{ role: "assistant", content: GUIDE_FIRST_UTT }],
+    crabHistory: [{ role: "assistant", content: CRAB_FIRST_UTT }],
+    fishermanHistory: [{ role: "assistant", content: FISHERMAN_FIRST_UTT }],
   }),
   id: "DM",
   initial: "Prepare",
@@ -177,16 +227,15 @@ const dmMachine = setup({
     },
     WaitToStart: {
       on: { CLICK: "Game" },
-      
     },
     NoInput: {
       entry: {
         type: "spst.speak",
         params: { utterance: `I can't hear you!` },
       },
-      on: { SPEAK_COMPLETE: {target: "Game.hist"} },
+      on: { SPEAK_COMPLETE: { target: "Game.hist" } },
     },
-    Game:{
+    Game: {
       id: "Game",
       initial: "Intro",
       states: {
@@ -198,13 +247,14 @@ const dmMachine = setup({
         Intro: {
           entry: [
             ({}) => makeHidden("mapOnly", false),
-            { type: "spst.speak", params: { utterance: INTRO } }],
+            { type: "spst.speak", params: { utterance: INTRO } },
+          ],
           on: {
             SPEAK_COMPLETE: {
               target: "Guide",
               actions: ({}) => makeHidden("mapOnly", true),
-            }
-          }, 
+            },
+          },
         },
         Guide: {
           initial: "FirstUtterance",
@@ -218,7 +268,7 @@ const dmMachine = setup({
                 },
                 guard: {
                   type: "isCharacter",
-                  params: () => ({name: "Blue Crab"})
+                  params: () => ({ name: "Blue Crab" }),
                 },
               },
               {
@@ -229,7 +279,7 @@ const dmMachine = setup({
                 },
                 guard: {
                   type: "isCharacter",
-                  params: () => ({name: "Fisherman"})
+                  params: () => ({ name: "Fisherman" }),
                 },
               },
               {
@@ -246,65 +296,83 @@ const dmMachine = setup({
           },
           states: {
             FirstUtterance: {
-              entry: [ 
+              entry: [
                 ({}) => makeHidden("main", false),
                 ({}) => setSpeaking("guide", true),
                 {
                   type: "azure.speakSSML",
-                  params: ({context}) => {
+                  params: ({ context }) => {
                     return {
-                      ssml: getGuideSSML(context.guideHistory?.at(-1)?.content as string ?? GUIDE_FIRST_UTT)
-                    }
-                  }
-                }
-                ],
+                      ssml: getGuideSSML(
+                        (context.guideHistory?.at(-1)?.content as string) ??
+                          GUIDE_FIRST_UTT,
+                      ),
+                    };
+                  },
+                },
+              ],
               on: {
-                SPEAK_COMPLETE: "Ask"
+                SPEAK_COMPLETE: "Ask",
               },
             },
             Prompt: {
-                invoke: {
-                  src: "getLLMAnswerActor",
-                  input: ({ context }) => ({
-                    dialogue: context.guideHistory,
-                    prompt: GUIDE_PROMPT
-                  }),
-                  onDone: {
-                    actions: [
-                      assign(({ context, event }) => {
-                        return {guideHistory: (context.guideHistory ?? []).concat([{"role": "assistant", "content": event.output}])};
-                      }),
-                    ],
-                    target: "SpeakPrompt"
-                  }
-              }
+              invoke: {
+                src: "getLLMAnswerActor",
+                input: ({ context }) => ({
+                  dialogue: context.guideHistory,
+                  prompt: GUIDE_PROMPT,
+                }),
+                onDone: {
+                  actions: [
+                    assign(({ context, event }) => {
+                      return {
+                        guideHistory: (context.guideHistory ?? []).concat([
+                          { role: "assistant", content: event.output },
+                        ]),
+                      };
+                    }),
+                  ],
+                  target: "SpeakPrompt",
+                },
+              },
             },
             SpeakPrompt: {
-              entry:[ 
+              entry: [
                 ({}) => setSpeaking("guide", true),
                 {
                   type: "azure.speakSSML",
-                  params: ({context}) => ({ssml: getGuideSSML(context.guideHistory?.at(-1)?.content as string ?? "Sorry, there was an error")})
-                }
+                  params: ({ context }) => ({
+                    ssml: getGuideSSML(
+                      (context.guideHistory?.at(-1)?.content as string) ??
+                        "Sorry, there was an error",
+                    ),
+                  }),
+                },
               ],
               on: {
-                SPEAK_COMPLETE: "Ask"
-              }
+                SPEAK_COMPLETE: "Ask",
+              },
             },
             Ask: {
               entry: [
                 ({}) => setSpeaking("guide", false),
-                { type: "spst.listen" }
+                { type: "spst.listen" },
               ],
               on: {
                 RECOGNISED: {
                   actions: assign(({ context, event }) => {
-                    return { lastResult: event.value, interpretation: event.nluValue, guideHistory: (context.guideHistory ?? []).concat([{"role": "user", "content": event.value?.[0].utterance}]) };
+                    return {
+                      lastResult: event.value,
+                      interpretation: event.nluValue,
+                      guideHistory: (context.guideHistory ?? []).concat([
+                        { role: "user", content: event.value?.[0].utterance },
+                      ]),
+                    };
                   }),
                 },
                 ASR_NOINPUT: {
                   actions: assign({ lastResult: null }),
-                  invoke: "#DM.NoInput"
+                  invoke: "#DM.NoInput",
                 },
               },
             },
@@ -317,11 +385,18 @@ const dmMachine = setup({
               {
                 target: "Guide",
                 actions: [
-                    assign(({ context }) => {
-                        return {guideHistory: (context.guideHistory ?? []).concat([{"role": "assistant", "content": "So how did talking to the Crab go?"}])};
-                    }),
-                    ({}) => makeHidden("crab", true),
-                  ],
+                  assign(({ context }) => {
+                    return {
+                      guideHistory: (context.guideHistory ?? []).concat([
+                        {
+                          role: "assistant",
+                          content: "So how did talking to the Crab go?",
+                        },
+                      ]),
+                    };
+                  }),
+                  ({}) => makeHidden("crab", true),
+                ],
                 guard: "isEndConversation",
               },
               {
@@ -335,53 +410,71 @@ const dmMachine = setup({
             FirstUtterance: {
               entry: [
                 ({}) => setSpeaking("crab", true),
-                {type: "azure.speakSSML", params: {ssml: getCrabSSML(CRAB_FIRST_UTT)}},
+                {
+                  type: "azure.speakSSML",
+                  params: { ssml: getCrabSSML(CRAB_FIRST_UTT) },
+                },
               ],
-              on: {SPEAK_COMPLETE: "Ask"}
+              on: { SPEAK_COMPLETE: "Ask" },
             },
             Prompt: {
-                invoke: {
-                  src: "getLLMAnswerActor",
-                  input: ({ context }) => ({
-                    dialogue: context.crabHistory,
-                    prompt: CRAB_PROMPT,
-                  }),
-                  onDone: {
-                    actions: [
-                      assign(({ context, event }) => {
-                        return {crabHistory: (context.crabHistory ?? []).concat([{"role": "assistant", "content": event.output}])};
-                      }),
-                    ],
-                    target: "SpeakPrompt"
-                  }
-              }
+              invoke: {
+                src: "getLLMAnswerActor",
+                input: ({ context }) => ({
+                  dialogue: context.crabHistory,
+                  prompt: CRAB_PROMPT,
+                }),
+                onDone: {
+                  actions: [
+                    assign(({ context, event }) => {
+                      return {
+                        crabHistory: (context.crabHistory ?? []).concat([
+                          { role: "assistant", content: event.output },
+                        ]),
+                      };
+                    }),
+                  ],
+                  target: "SpeakPrompt",
+                },
+              },
             },
             SpeakPrompt: {
               entry: [
                 ({}) => setSpeaking("crab", true),
                 {
                   type: "azure.speakSSML",
-                  params: ({context}) => ({ssml: getCrabSSML(context.crabHistory?.at(-1)?.content as string ?? "Sorry, there was an error")}),
+                  params: ({ context }) => ({
+                    ssml: getCrabSSML(
+                      (context.crabHistory?.at(-1)?.content as string) ??
+                        "Sorry, there was an error",
+                    ),
+                  }),
                 },
               ],
               on: {
-                SPEAK_COMPLETE: "Ask"
-              }
+                SPEAK_COMPLETE: "Ask",
+              },
             },
             Ask: {
               entry: [
                 ({}) => setSpeaking("crab", false),
-                { type: "spst.listen" }
+                { type: "spst.listen" },
               ],
               on: {
                 RECOGNISED: {
                   actions: assign(({ context, event }) => {
-                    return { lastResult: event.value, interpretation: event.nluValue, crabHistory: (context.crabHistory ?? []).concat([{"role": "user", "content": event.value?.[0].utterance}]) };
+                    return {
+                      lastResult: event.value,
+                      interpretation: event.nluValue,
+                      crabHistory: (context.crabHistory ?? []).concat([
+                        { role: "user", content: event.value?.[0].utterance },
+                      ]),
+                    };
                   }),
                 },
                 ASR_NOINPUT: {
                   actions: assign({ lastResult: null }),
-                  invoke: "#DM.NoInput"
+                  invoke: "#DM.NoInput",
                 },
               },
             },
@@ -395,8 +488,15 @@ const dmMachine = setup({
                 target: "Guide",
                 actions: [
                   assign(({ context }) => {
-                        return {guideHistory: (context.guideHistory ?? []).concat([{"role": "assistant", "content": "So how did talking to the Fisherman go?"}])};
-                      }),
+                    return {
+                      guideHistory: (context.guideHistory ?? []).concat([
+                        {
+                          role: "assistant",
+                          content: "So how did talking to the Fisherman go?",
+                        },
+                      ]),
+                    };
+                  }),
                   ({}) => makeHidden("fisherman", true),
                 ],
                 guard: "isEndConversation",
@@ -414,54 +514,73 @@ const dmMachine = setup({
                 ({}) => setSpeaking("fisherman", true),
                 {
                   type: "azure.speakSSML",
-                  params: ({}) => ({ssml: getFishermanSSML(FISHERMAN_FIRST_UTT)})
+                  params: ({}) => ({
+                    ssml: getFishermanSSML(FISHERMAN_FIRST_UTT),
+                  }),
                 },
               ],
-              on: {SPEAK_COMPLETE: "Ask"}
+              on: { SPEAK_COMPLETE: "Ask" },
             },
             Prompt: {
-                invoke: {
-                  src: "getLLMAnswerActor",
-                  input: ({ context }) => ({
-                    dialogue: context.fishermanHistory,
-                    prompt: FISHERMAN_PROMPT,
-                  }),
-                  onDone: {
-                    actions: [
-                      assign(({ context, event }) => {
-                        return {fishermanHistory: (context.fishermanHistory ?? []).concat([{"role": "assistant", "content": event.output}])};
-                      }),
-                    ],
-                    target: "SpeakPrompt"
-                  }
-              }
+              invoke: {
+                src: "getLLMAnswerActor",
+                input: ({ context }) => ({
+                  dialogue: context.fishermanHistory,
+                  prompt: FISHERMAN_PROMPT,
+                }),
+                onDone: {
+                  actions: [
+                    assign(({ context, event }) => {
+                      return {
+                        fishermanHistory: (
+                          context.fishermanHistory ?? []
+                        ).concat([
+                          { role: "assistant", content: event.output },
+                        ]),
+                      };
+                    }),
+                  ],
+                  target: "SpeakPrompt",
+                },
+              },
             },
             SpeakPrompt: {
               entry: [
                 ({}) => setSpeaking("fisherman", true),
                 {
                   type: "azure.speakSSML",
-                  params: ({context}) => ({ssml: getFishermanSSML(context.fishermanHistory?.at(-1)?.content as string ?? "Sorry, there was an error")})
+                  params: ({ context }) => ({
+                    ssml: getFishermanSSML(
+                      (context.fishermanHistory?.at(-1)?.content as string) ??
+                        "Sorry, there was an error",
+                    ),
+                  }),
                 },
               ],
               on: {
-                SPEAK_COMPLETE: "Ask"
-              }
+                SPEAK_COMPLETE: "Ask",
+              },
             },
             Ask: {
               entry: [
                 ({}) => setSpeaking("fisherman", false),
-                { type: "spst.listen" }
+                { type: "spst.listen" },
               ],
               on: {
                 RECOGNISED: {
                   actions: assign(({ context, event }) => {
-                    return { lastResult: event.value, interpretation: event.nluValue, fishermanHistory: (context.fishermanHistory ?? []).concat([{"role": "user", "content": event.value?.[0].utterance}]) };
+                    return {
+                      lastResult: event.value,
+                      interpretation: event.nluValue,
+                      fishermanHistory: (context.fishermanHistory ?? []).concat(
+                        [{ role: "user", content: event.value?.[0].utterance }],
+                      ),
+                    };
                   }),
                 },
                 ASR_NOINPUT: {
                   actions: assign({ lastResult: null }),
-                  invoke: "#DM.NoInput"
+                  invoke: "#DM.NoInput",
                 },
               },
             },
@@ -472,7 +591,7 @@ const dmMachine = setup({
     Done: {
       entry: [
         ({}) => makeHidden("credits", false),
-        {type: "spst.speak", params: {utterance: "Thank you for playing!"}}
+        { type: "spst.speak", params: { utterance: "Thank you for playing!" } },
       ],
       on: {
         CLICK: "Game",
@@ -481,8 +600,7 @@ const dmMachine = setup({
   },
 });
 
-const dmActor = createActor(dmMachine, {
-}).start();
+const dmActor = createActor(dmMachine, {}).start();
 
 dmActor.subscribe((state) => {
   console.group("State update");
@@ -493,11 +611,10 @@ dmActor.subscribe((state) => {
 
 export function setupStartButton(element: HTMLButtonElement) {
   element.addEventListener("click", () => {
-    makeHidden("startPage", true)
+    makeHidden("startPage", true);
     dmActor.send({ type: "CLICK" });
   });
 }
-
 
 function makeHidden(divId: string, hidden: boolean) {
   const element = document.getElementById(divId);
@@ -507,9 +624,11 @@ function makeHidden(divId: string, hidden: boolean) {
 }
 
 function setSpeaking(character: string, value: boolean) {
-  const element = document.getElementById(`${character}Image`) as HTMLImageElement | null;
+  const element = document.getElementById(
+    `${character}Image`,
+  ) as HTMLImageElement | null;
   if (!element) return;
-  
+
   if (value) {
     element.src = `https://files.maraev.me/lagoon_voices/${character}-animation.gif`;
   } else {
