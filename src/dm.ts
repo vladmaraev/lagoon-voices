@@ -21,10 +21,13 @@ const azureCredentials = {
   key: "KEY",
 };
 
+const getCLUKey = async () =>
+  fetch("/api/clu-key").then((response) => response.text());
+
 const azureLanguageCredentials = {
   endpoint:
     "https://lab-gusmilczo.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2024-11-15-preview" /** your Azure CLU prediction URL */,
-  key: "NLU_KEY" /** reference to your Azure CLU key */,
+  key: await getCLUKey() /** reference to your Azure CLU key */,
   deploymentName: "lagoon" /** your Azure CLU deployment */,
   projectName: "lagoon" /** your Azure CLU project name */,
 };
