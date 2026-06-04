@@ -47274,7 +47274,7 @@ OpenAI.Skills = Skills;
 OpenAI.Videos = Videos;
 
 // src/dm.ts
-var getCLUKey = async () => fetch("/api/clu-key").then((response) => response.text());
+var getCLUKey = async () => fetch("api/clu-key").then((response) => response.text());
 var azureLanguageCredentials = {
   endpoint: "https://lab-gusmilczo.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2024-11-15-preview",
   key: await getCLUKey(),
@@ -47283,7 +47283,7 @@ var azureLanguageCredentials = {
 };
 var settings = {
   azureLanguageCredentials,
-  azureCredentials: "/api/token",
+  azureCredentials: "api/token",
   azureRegion: "francecentral",
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5e3,
@@ -47298,7 +47298,7 @@ var client = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 function getLLMAnswerScaped(dialogue, prompt) {
-  return fetch("/api/llm", {
+  return fetch("api/llm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"

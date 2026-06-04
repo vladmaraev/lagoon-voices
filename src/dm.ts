@@ -22,7 +22,7 @@ const azureCredentials = {
 };
 
 const getCLUKey = async () =>
-  fetch("/api/clu-key").then((response) => response.text());
+  fetch("api/clu-key").then((response) => response.text());
 
 const azureLanguageCredentials = {
   endpoint:
@@ -34,7 +34,7 @@ const azureLanguageCredentials = {
 
 const settings: Settings = {
   azureLanguageCredentials: azureLanguageCredentials,
-  azureCredentials: "/api/token",
+  azureCredentials: "api/token",
   azureRegion: "francecentral",
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
@@ -72,7 +72,7 @@ function getLLMAnswerScaped(
   dialogue: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   prompt: string,
 ): Promise<string> {
-  return fetch("/api/llm", {
+  return fetch("api/llm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
