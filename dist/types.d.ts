@@ -1,6 +1,7 @@
 import type { Hypothesis, SpeechStateExternalEvent } from "speechstate";
 import type { ActorRef } from "xstate";
 import type { OpenAI } from "openai";
+import { Socket } from "phoenix";
 export interface DMContext {
     spstRef: ActorRef<any, any>;
     lastResult: Hypothesis[] | null;
@@ -8,6 +9,8 @@ export interface DMContext {
     guideHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
     crabHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
     fishermanHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+    recordingPCs?: RTCPeerConnection[];
+    recordingSockets?: Socket[];
 }
 export type DMEvents = SpeechStateExternalEvent | {
     type: "CLICK";

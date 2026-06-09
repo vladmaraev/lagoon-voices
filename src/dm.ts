@@ -14,6 +14,17 @@ import {
 } from "./prompts";
 import type { DMContext, DMEvents } from "./types";
 import OpenAI from "openai";
+import { setupRecorders } from "speechstate_webrtc_client";
+
+const GET_ATTRIBUTES = () => ({
+  session_id: parseInt(
+    document.getElementById("app")!.getAttribute("data-session-id")!,
+  ),
+  signalling_id: document
+    .getElementById("app")!
+    .getAttribute("data-signalling-id")!,
+  condition: document.getElementById("app")!.getAttribute("data-condition")!,
+});
 
 const azureCredentials = {
   endpoint:
@@ -182,6 +193,14 @@ const dmMachine = setup({
         },
       );
     },
+    stop_recording: ({ context }) => {
+      context.recordingSockets?.forEach((s) => {
+        s.disconnect();
+      });
+      context.recordingPCs?.forEach((pc) =>
+        pc.getSenders().forEach((sender) => sender.track?.stop()),
+      );
+    },
   },
   guards: {
     isYes: ({ context }) =>
@@ -214,6 +233,26 @@ const dmMachine = setup({
         return getLLMAnswerScaped(input.dialogue, input.prompt);
       },
     ),
+    setupRecording: fromPromise(() => {
+      return setupRecorders(GET_ATTRIBUTES().signalling_id);
+    }),
+    saveTranscript: fromPromise<
+      any,
+      {
+        session_id: number;
+        moves: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+        step: number;
+      }
+    >(async ({ input }) => {
+      const response = await fetch("session/savetranscript", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      return response.json();
+    }),
   },
 }).createMachine({
   context: ({ spawn }) => ({
@@ -227,6 +266,19 @@ const dmMachine = setup({
   id: "DM",
   initial: "Prepare",
   states: {
+    // SetupRecording: {
+    //   invoke: {
+    //     src: "setupRecording",
+    //     input: null,
+    //     onDone: {
+    //       target: "Prepare",
+    //       actions: assign(({ event }) => ({
+    //         recordingPCs: event.output.pcs,
+    //         recordingSockets: event.output.sockets,
+    //       })),
+    //     },
+    //   },
+    // },
     Prepare: {
       entry: ({ context }) => context.spstRef.send({ type: "PREPARE" }),
       on: { ASRTTS_READY: "WaitToStart" },
@@ -244,6 +296,10 @@ const dmMachine = setup({
     Game: {
       id: "Game",
       initial: "Intro",
+      entry: () =>
+        console.log(
+          `Starting the game... SESSION_ID: ${GET_ATTRIBUTES().session_id}, CONDITION: ${GET_ATTRIBUTES().condition}`,
+        ),
       states: {
         hist: {
           type: "history",
@@ -392,7 +448,10 @@ const dmMachine = setup({
                       guideHistory: (context.guideHistory ?? []).concat([
                         {
                           role: "assistant",
-                          content: "So how did talking to the Crab go?",
+                          content:
+                            GET_ATTRIBUTES().condition === "1"
+                              ? "What did the Crab tell you"
+                              : "How is the Crab feeling",
                         },
                       ]),
                     };
@@ -493,7 +552,10 @@ const dmMachine = setup({
                       guideHistory: (context.guideHistory ?? []).concat([
                         {
                           role: "assistant",
-                          content: "So how did talking to the Fisherman go?",
+                          content:
+                            GET_ATTRIBUTES().condition === "1"
+                              ? "What did the Fisherman tell you"
+                              : "How is the Fisherman feeling",
                         },
                       ]),
                     };
@@ -587,6 +649,49 @@ const dmMachine = setup({
       },
     },
     Done: {
+      initial: "SaveCrab",
+      // entry: { type: "stop_recording" },
+      states: {
+        SaveCrab: {
+          invoke: {
+            src: "saveTranscript",
+            input: ({ context }) => ({
+              session_id: GET_ATTRIBUTES().session_id,
+              step: 0,
+              moves: context.crabHistory!,
+            }),
+            onDone: { target: "SaveFisherman" },
+          },
+        },
+        SaveFisherman: {
+          invoke: {
+            src: "saveTranscript",
+            input: ({ context }) => ({
+              session_id: GET_ATTRIBUTES().session_id,
+              step: 1,
+              moves: context.fishermanHistory!,
+            }),
+            onDone: { target: "SaveGuide" },
+          },
+        },
+        SaveGuide: {
+          invoke: {
+            src: "saveTranscript",
+            input: ({ context }) => ({
+              session_id: GET_ATTRIBUTES().session_id,
+              step: 2,
+              moves: context.guideHistory!,
+            }),
+            onDone: { target: "Final" },
+          },
+        },
+        Final: {
+          type: "final",
+        },
+      },
+      onDone: { target: "Finalise" },
+    },
+    Finalise: {
       entry: [
         ({}) => makeHidden("credits", false),
         { type: "spst.speak", params: { utterance: "Thank you for playing!" } },

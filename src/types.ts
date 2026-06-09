@@ -1,19 +1,27 @@
 import type { Hypothesis, SpeechStateExternalEvent } from "speechstate";
 import type { ActorRef } from "xstate";
-import type {OpenAI} from "openai";
+import type { OpenAI } from "openai";
+import { Socket } from "phoenix";
 
 export interface DMContext {
   spstRef: ActorRef<any, any>;
   lastResult: Hypothesis[] | null;
   interpretation: NLUObject | null;
-  guideHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null,
-  crabHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null,
-  fishermanHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null,
+  guideHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+  crabHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+  fishermanHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] | null;
+  recordingPCs?: RTCPeerConnection[];
+  recordingSockets?: Socket[];
 }
 
-export type DMEvents = SpeechStateExternalEvent | { type: "CLICK" } | { type: "DONE" } | {type: "SPEAK_START"};
+export type DMEvents =
+  | SpeechStateExternalEvent
+  | { type: "CLICK" }
+  | { type: "DONE" }
+  | { type: "SPEAK_START" };
 
-export interface Entity { // This is the type of the entities array in the NLUObject. 
+export interface Entity {
+  // This is the type of the entities array in the NLUObject.
   category: string;
   text: string;
   confidenceScore: number;
@@ -33,12 +41,14 @@ export interface ExtraInofrmation {
   key: string;
 }
 
-export interface Intent { // This is the type of the intents array in the NLUObject.
+export interface Intent {
+  // This is the type of the intents array in the NLUObject.
   category: string;
   confidenceScore: number;
 }
 
-export interface NLUObject { // This is the type of the interpretation in the DMContext.
+export interface NLUObject {
+  // This is the type of the interpretation in the DMContext.
   entities: Entity[];
   intents: Intent[];
   projectKind: string;
